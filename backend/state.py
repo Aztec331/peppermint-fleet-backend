@@ -1,20 +1,36 @@
-from .models import Robot, RobotEvent
+import json
+from pathlib import Path
+
+DATA_FILE = Path(__file__).resolve().parent.parent / "data" / "robots.json"
 
 
-fleet_state: dict[str, list[Robot | RobotEvent]] = {
-    "robots": [],
-    "events": [],
-}
+def load_robots() -> list[dict]:
+    """Load the robot roster from robots.json and return it as a Python list."""
+    with open(DATA_FILE, "r", encoding="utf-8") as file:
+        return json.load(file)
 
 
-def add_robot(robot: Robot) -> None:
-    fleet_state["robots"].append(robot)
+def initialize_fleet_state(robots: list[dict]) -> dict:
+    """Create the initial current state for every robot using its starting position."""
+    fleet_state = {}
+
+    for robot in robots:
+        robot_id = robot["robot_id"]
+
+        fleet_state[robot_id] = {
+            "robot_id": robot_id,
+            "robot_type": robot["robot_type"],
+            "x": robot["start"]["x"],
+            "y": robot["start"]["y"],
+            "battery": None,
+            "status": "idle",
+            "last_event_time": None,
+        }
+
+    return fleet_state
 
 
-def add_event(event: RobotEvent) -> None:
-    fleet_state["events"].append(event)
+robots = load_robots()
+fleet_state = initialize_fleet_state(robots)
 
-
-def reset_state() -> None:
-    fleet_state["robots"].clear()
-    fleet_state["events"].clear()
+print(fleet_state)
