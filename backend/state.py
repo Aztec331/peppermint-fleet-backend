@@ -33,4 +33,19 @@ def initialize_fleet_state(robots: list[dict]) -> dict:
 robots = load_robots()
 fleet_state = initialize_fleet_state(robots)
 
-print(fleet_state)
+
+def update_robot_state(fleet_state: dict, event: dict) -> None:
+    """Update a robot's current state using a newly received event."""
+
+    robot_id = event["robot_id"]
+
+    if robot_id not in fleet_state:
+        return
+
+    fleet_state[robot_id].update({
+        "x": event["x"],
+        "y": event["y"],
+        "battery": event["battery"],
+        "status": event["status"],
+        "last_event_time": event["t"],
+    })
