@@ -21,3 +21,8 @@ def receive_robot_event(event: RobotEvent):
     return {
     "message": "Event received",
     }
+
+@app.get("/api/robots")
+def get_fleet_state() -> dict:
+    """Return the current state of all robots in the fleet."""
+    return fleet_state
