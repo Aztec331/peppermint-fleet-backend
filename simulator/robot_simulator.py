@@ -7,7 +7,7 @@ import httpx
 
 
 DATA_FILE = Path(__file__).resolve().parent.parent / "data" / "events.jsonl"
-BACKEND_URL = "http://localhost:8000/robots/events"
+BACKEND_URL = "http://localhost:8000/api/robots/events"
 ROBOT_ID = os.getenv("ROBOT_ID", "r1")
 
 
