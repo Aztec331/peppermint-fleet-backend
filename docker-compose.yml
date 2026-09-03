@@ -4,5 +4,75 @@ services:
     command: uvicorn backend.main:app --host 0.0.0.0 --port 8000
     ports:
       - "8000:8000"
-    volumes:
-      - .:/app
+
+  robot-r1:
+    build: .
+    command: python simulator/robot_simulator.py
+    environment:
+      ROBOT_ID: r1
+      BACKEND_URL: http://backend:8000/api/robots/events
+    depends_on:
+      - backend
+
+  robot-r2:
+    build: .
+    command: python simulator/robot_simulator.py
+    environment:
+      ROBOT_ID: r2
+      BACKEND_URL: http://backend:8000/api/robots/events
+    depends_on:
+      - backend
+
+  robot-r3:
+    build: .
+    command: python simulator/robot_simulator.py
+    environment:
+      ROBOT_ID: r3
+      BACKEND_URL: http://backend:8000/api/robots/events
+    depends_on:
+      - backend
+
+  robot-r4:
+    build: .
+    command: python simulator/robot_simulator.py
+    environment:
+      ROBOT_ID: r4
+      BACKEND_URL: http://backend:8000/api/robots/events
+    depends_on:
+      - backend
+
+  robot-r5:
+    build: .
+    command: python simulator/robot_simulator.py
+    environment:
+      ROBOT_ID: r5
+      BACKEND_URL: http://backend:8000/api/robots/events
+    depends_on:
+      - backend
+
+  robot-r6:
+    build: .
+    command: python simulator/robot_simulator.py
+    environment:
+      ROBOT_ID: r6
+      BACKEND_URL: http://backend:8000/api/robots/events
+    depends_on:
+      - backend
+
+  robot-r7:
+    build: .
+    command: python simulator/robot_simulator.py
+    environment:
+      ROBOT_ID: r7
+      BACKEND_URL: http://backend:8000/api/robots/events
+    depends_on:
+      - backend
+
+  robot-r8:
+    build: .
+    command: python simulator/robot_simulator.py
+    environment:
+      ROBOT_ID: r8
+      BACKEND_URL: http://backend:8000/api/robots/events
+    depends_on:
+      - backend
