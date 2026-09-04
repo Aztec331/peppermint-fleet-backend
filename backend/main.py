@@ -1,5 +1,7 @@
 import asyncio
 import time
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 
 from backend.schemas import RobotEvent
@@ -31,12 +33,11 @@ class ConnectionManager:
                 self.disconnect(websocket)
 
 
-app = FastAPI()
 manager = ConnectionManager()
-
 
 OFFLINE_TIMEOUT = 10
 CHECK_INTERVAL = 1
+
 
 async def check_robot_status():
     """Mark robots offline when no event is received within the timeout."""
@@ -47,19 +48,28 @@ async def check_robot_status():
             last_received_at = robot["last_received_at"]
 
             if (
-            last_received_at is not None
-            and current_time - last_received_at > OFFLINE_TIMEOUT
-            and robot["status"] != "offline"
-        ):
+                last_received_at is not None
+                and current_time - last_received_at > OFFLINE_TIMEOUT
+                and robot["status"] != "offline"
+            ):
                 robot["status"] = "offline"
                 await manager.broadcast(fleet_state)
 
         await asyncio.sleep(CHECK_INTERVAL)
 
-@app.on_event("startup")
-async def startup_event():
-    """Start the background robot status checker."""
-    asyncio.create_task(check_robot_status())
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Start and stop the background robot status checker."""
+    task = asyncio.create_task(check_robot_status())
+
+    yield
+
+    task.cancel()
+
+
+app = FastAPI(lifespan=lifespan)
+
 
 @app.get("/")
 def root():
@@ -77,15 +87,17 @@ async def receive_robot_event(event: RobotEvent):
         "message": "Event received",
     }
 
+
 @app.get("/api/robots")
 def get_fleet_state() -> dict:
     """Return the current state of all robots in the fleet."""
     return fleet_state
 
+
 @app.websocket("/api/robots/ws")
 async def robot_websocket(websocket: WebSocket):
     """Accept a WebSocket client and keep the connection open for updates."""
-    #manager is ConnectionManager object
+    # manager is ConnectionManager object
     await manager.connect(websocket)
 
     try:
@@ -99,5 +111,6 @@ async def robot_websocket(websocket: WebSocket):
 
     except WebSocketDisconnect:
         pass
+
     finally:
         manager.disconnect(websocket)
