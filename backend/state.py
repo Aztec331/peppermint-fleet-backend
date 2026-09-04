@@ -1,4 +1,6 @@
 import json
+import time
+
 from pathlib import Path
 
 DATA_FILE = Path(__file__).resolve().parent.parent / "data" / "robots.json"
@@ -25,6 +27,7 @@ def initialize_fleet_state(robots: list[dict]) -> dict:
             "battery": None,
             "status": "idle",
             "last_event_time": None,
+            "last_received_at": None,
         }
 
     return fleet_state
@@ -42,6 +45,12 @@ def update_robot_state(fleet_state: dict, event: dict) -> None:
     if robot_id not in fleet_state:
         return
 
+    if (
+    fleet_state[robot_id]["last_event_time"] is not None
+    and event["t"] < fleet_state[robot_id]["last_event_time"]
+    ):
+        return
+
     fleet_state[robot_id].update({
         "x": event["x"],
         "y": event["y"],
@@ -49,3 +58,6 @@ def update_robot_state(fleet_state: dict, event: dict) -> None:
         "status": event["status"],
         "last_event_time": event["t"],
     })
+
+    fleet_state[robot_id]["last_received_at"] = time.monotonic()
+    

@@ -1,3 +1,5 @@
+import asyncio
+import time
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 
 from backend.schemas import RobotEvent
@@ -33,6 +35,32 @@ app = FastAPI()
 manager = ConnectionManager()
 
 
+OFFLINE_TIMEOUT = 10
+CHECK_INTERVAL = 1
+
+async def check_robot_status():
+    """Mark robots offline when no event is received within the timeout."""
+    while True:
+        current_time = time.monotonic()
+
+        for robot in fleet_state.values():
+            last_received_at = robot["last_received_at"]
+
+            if (
+            last_received_at is not None
+            and current_time - last_received_at > OFFLINE_TIMEOUT
+            and robot["status"] != "offline"
+        ):
+                robot["status"] = "offline"
+                await manager.broadcast(fleet_state)
+
+        await asyncio.sleep(CHECK_INTERVAL)
+
+@app.on_event("startup")
+async def startup_event():
+    """Start the background robot status checker."""
+    asyncio.create_task(check_robot_status())
+
 @app.get("/")
 def root():
     """Return a simple message confirming that the backend is running."""
@@ -57,6 +85,7 @@ def get_fleet_state() -> dict:
 @app.websocket("/api/robots/ws")
 async def robot_websocket(websocket: WebSocket):
     """Accept a WebSocket client and keep the connection open for updates."""
+    #manager is ConnectionManager object
     await manager.connect(websocket)
 
     try:

@@ -27,6 +27,29 @@ def load_robot_events(robot_id: str) -> list[dict]:
 
     return events
 
+def send_event_with_retry(client: httpx.Client, event: dict) -> bool:
+    """Send one robot event with limited retries and exponential backoff."""
+    max_retries = 3
+    delay = 1
+
+    for attempt in range(max_retries + 1):
+        try:
+            response = client.post(BACKEND_URL, json=event)
+            response.raise_for_status()
+            return True
+        except httpx.HTTPError as error:
+            if attempt == max_retries:
+                print(
+                    f"{ROBOT_ID} failed after {max_retries} retries: {error}"
+                )
+                return False
+
+            print(
+                f"{ROBOT_ID} failed attempt {attempt + 1}: {error}. "
+                f"Retrying in {delay}s..."
+            )
+            time.sleep(delay)
+            delay *= 2
 
 def replay_events(events: list[dict]) -> None:
     """Replay robot events in their recorded order and send them to the backend."""
@@ -34,11 +57,7 @@ def replay_events(events: list[dict]) -> None:
         for event in events:
             print(f"{ROBOT_ID} sending event: {event}")
 
-            try:
-                response = client.post(BACKEND_URL, json=event)
-                response.raise_for_status()
-            except httpx.HTTPError as error:
-                print(f"{ROBOT_ID} failed to send event: {error}")
+            send_event_with_retry(client, event)
 
             time.sleep(1)
 
