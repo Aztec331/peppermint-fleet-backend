@@ -1,0 +1,21 @@
+# Answers
+
+## 1. What holds the fleet's current state in your backend, and why that shape, given it has to serve both the WebSocket stream and the polling endpoint consistently?
+
+The backend keeps the current fleet state in an in-memory Python dictionary called `fleet_state` in `backend/state.py`, keyed by `robot_id`. Each robot has a single current-state object containing its `robot_id`, `robot_type`, position (`x`, `y`), battery, status, and the timestamp of its latest accepted event. The state is initialized from `robots.json` using `initialize_fleet_state()` and updated through `update_robot_state()` whenever a new robot event is received.
+
+I chose this shape because the system mainly needs the latest state of each robot rather than a full event history. Both consumers use this same `fleet_state`: `GET /api/robots` returns it directly, while the WebSocket endpoint in `backend/main.py` sends the same state through `ConnectionManager`. This means the REST and WebSocket interfaces do not maintain separate copies of the fleet state and therefore cannot intentionally drift apart within the single backend process. The `last_event_time` field is also used by `update_robot_state()` to ignore older events that arrive late or out of order.
+
+
+## 2. Name one real tradeoff you made: the mechanism you chose for robots to reach your backend, its delivery guarantees, and how you reconcile that mechanism's semantics with your WebSocket fanout. Argue for the decision, including its cost.
+
+I chose HTTP callbacks for communication from the simulated robots to the backend. Each simulator reads the robot's events from `events.jsonl` and sends them to `POST /api/robots/events`. I chose HTTP because it is simple to implement and debug, requires no additional broker infrastructure, and is sufficient for the small simulated fleet required by the assignment. The simulator also retries failed requests with bounded exponential backoff, giving the system retry-based delivery rather than relying on a single attempt. The backend uses the event timestamp `t` in `update_robot_state()` to prevent an older event from overwriting a newer state.
+
+The tradeoff is that HTTP callbacks do not provide the same built-in buffering and pub/sub semantics that a message broker such as MQTT or a queue could provide. If the backend is unavailable beyond the simulator's retry window, an event can ultimately be lost. Once an event is accepted by the backend, the backend updates the shared `fleet_state` and `ConnectionManager` broadcasts that state to connected WebSocket clients. This separates ingestion from fanout: robots only need to communicate with the backend, while multiple consumers can receive updates through WebSocket. The cost of this simpler design is that durable event storage, broker-based buffering, and horizontal scaling would need to be added for a larger production system.
+
+
+## 3. What did you leave out, and what would you build next given more time?
+
+I intentionally kept the implementation focused on the required current-state functionality. I did not add persistent fleet history, authentication and authorization, a shared database or distributed state store, or a message broker. The assignment's history endpoint was optional, so the backend currently keeps only the latest state in memory. I also kept the WebSocket implementation simple by broadcasting the current fleet snapshot rather than building a more complex subscription or delta-update protocol.
+
+Given more time, I would first add persistent event history and a shared state/store so the backend could survive restarts and support multiple backend instances. I would also add stronger event identity and sequence numbers for idempotency and ordering, more robust heartbeat/health reporting for robots, and delta-based WebSocket updates so clients receive only the robot state that changed. These changes would make the design more suitable for a larger production fleet while keeping the current ingestion and API boundaries.
